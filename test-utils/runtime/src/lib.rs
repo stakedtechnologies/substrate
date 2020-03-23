@@ -41,10 +41,9 @@ use sp_runtime::{
 		BlindCheckable, BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT,
 		GetNodeBlockType, GetRuntimeBlockType, Verify, IdentityLookup,
 	},
-	generic::CheckSignature,
 };
 use sp_version::RuntimeVersion;
-pub use sp_core::{hash::H256};
+pub use sp_core::hash::H256;
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
 use frame_support::{impl_outer_origin, parameter_types, weights::Weight};
@@ -65,10 +64,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("test"),
 	impl_name: create_runtime_str!("parity-test"),
 	authoring_version: 1,
-	spec_version: 1,
-	#[cfg(feature = "std")]
-	impl_version: 1,
-	#[cfg(not(feature = "std"))]
+	spec_version: 2,
 	impl_version: 2,
 	apis: RUNTIME_API_VERSIONS,
 };
@@ -149,7 +145,7 @@ impl serde::Serialize for Extrinsic {
 impl BlindCheckable for Extrinsic {
 	type Checked = Self;
 
-	fn check(self, _signature: CheckSignature) -> Result<Self, TransactionValidityError> {
+	fn check(self) -> Result<Self, TransactionValidityError> {
 		match self {
 			Extrinsic::AuthoritiesChange(new_auth) => Ok(Extrinsic::AuthoritiesChange(new_auth)),
 			Extrinsic::Transfer { transfer, signature, exhaust_resources_when_not_first } => {
@@ -516,10 +512,6 @@ cfg_if! {
 					system::execute_transaction(extrinsic)
 				}
 
-				fn apply_trusted_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyExtrinsicResult {
-					system::execute_transaction(extrinsic)
-				}
-
 				fn finalize_block() -> <Block as BlockT>::Header {
 					system::finalize_block()
 				}
@@ -704,10 +696,6 @@ cfg_if! {
 
 			impl sp_block_builder::BlockBuilder<Block> for Runtime {
 				fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyExtrinsicResult {
-					system::execute_transaction(extrinsic)
-				}
-
-				fn apply_trusted_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyExtrinsicResult {
 					system::execute_transaction(extrinsic)
 				}
 
@@ -961,6 +949,7 @@ mod tests {
 	use sp_core::storage::well_known_keys::HEAP_PAGES;
 	use sp_state_machine::ExecutionStrategy;
 	use codec::Encode;
+	use sc_block_builder::BlockBuilderProvider;
 
 	#[test]
 	fn heap_pages_is_respected() {
