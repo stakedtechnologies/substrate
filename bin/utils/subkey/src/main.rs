@@ -79,6 +79,7 @@ trait Crypto: Sized {
 	) where
 		<Self::Pair as Pair>::Public: PublicT,
 	{
+		let v = network_override.unwrap_or_default();
 		if let Ok((pair, seed)) = Self::Pair::from_phrase(uri, password) {
 			let public_key = Self::public_from_pair(&pair);
 
@@ -86,6 +87,7 @@ trait Crypto: Sized {
 				OutputType::Json => {
 					let json = json!({
 						"secretPhrase": uri,
+						"networkId": String::from(v),
 						"secretSeed": format_seed::<Self>(seed),
 						"publicKey": format_public_key::<Self>(public_key.clone()),
 						"accountId": format_account_id::<Self>(public_key),
@@ -95,11 +97,13 @@ trait Crypto: Sized {
 				},
 				OutputType::Text => {
 					println!("Secret phrase `{}` is account:\n  \
-						Secret seed:      {}\n  \
-						Public key (hex): {}\n  \
-						Account ID:       {}\n  \
-						SS58 Address:     {}",
+						Network ID/version: {}\n  \
+						Secret seed:        {}\n  \
+						Public key (hex):   {}\n  \
+						Account ID:         {}\n  \
+						SS58 Address:       {}",
 						uri,
+						String::from(v),
 						format_seed::<Self>(seed),
 						format_public_key::<Self>(public_key.clone()),
 						format_account_id::<Self>(public_key),
@@ -114,6 +118,7 @@ trait Crypto: Sized {
 				OutputType::Json => {
 					let json = json!({
 						"secretKeyUri": uri,
+						"networkId": String::from(v),
 						"secretSeed": if let Some(seed) = seed { format_seed::<Self>(seed) } else { "n/a".into() },
 						"publicKey": format_public_key::<Self>(public_key.clone()),
 						"accountId": format_account_id::<Self>(public_key),
@@ -123,11 +128,13 @@ trait Crypto: Sized {
 				},
 				OutputType::Text => {
 					println!("Secret Key URI `{}` is account:\n  \
-						Secret seed:      {}\n  \
-						Public key (hex): {}\n  \
-						Account ID:       {}\n  \
-						SS58 Address:     {}",
+						Network ID/version: {}\n  \
+						Secret seed:        {}\n  \
+						Public key (hex):   {}\n  \
+						Account ID:         {}\n  \
+						SS58 Address:       {}",
 						uri,
+						String::from(v),
 						if let Some(seed) = seed { format_seed::<Self>(seed) } else { "n/a".into() },
 						format_public_key::<Self>(public_key.clone()),
 						format_account_id::<Self>(public_key),
@@ -648,7 +655,7 @@ fn read_pair<C: Crypto>(
 }
 
 fn format_signature<C: Crypto>(signature: &SignatureOf<C>) -> String {
-	format!("{}", hex::encode(signature))
+	format!("{}", HexDisplay::from(&signature.as_ref()))
 }
 
 fn format_seed<C: Crypto>(seed: SeedOf<C>) -> String {
@@ -683,6 +690,7 @@ fn create_extrinsic<C: Crypto>(
 			frame_system::CheckWeight::<Runtime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(f),
 			Default::default(),
+			Default::default(),
 		)
 	};
 	let raw_payload = SignedPayload::from_raw(
@@ -692,6 +700,7 @@ fn create_extrinsic<C: Crypto>(
 			VERSION.spec_version as u32,
 			genesis_hash,
 			genesis_hash,
+			(),
 			(),
 			(),
 			(),
@@ -711,7 +720,7 @@ fn create_extrinsic<C: Crypto>(
 }
 
 fn print_extrinsic(extrinsic: UncheckedExtrinsic) {
-	println!("0x{}", hex::encode(&extrinsic.encode()));
+	println!("0x{}", HexDisplay::from(&extrinsic.encode()));
 }
 
 fn print_usage(matches: &ArgMatches) {
